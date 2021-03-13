@@ -2,7 +2,7 @@
 
 This action allows caching dependencies and build outputs to improve workflow execution time.
 
-<a href="https://github.com/actions/cache/actions?query=workflow%3ATests"><img alt="GitHub Actions status" src="https://github.com/actions/cache/workflows/Tests/badge.svg?branch=main&event=push"></a>
+<a href="https://github.com/action-works/cabal-cache/actions?query=workflow%3ATests"><img alt="GitHub Actions status" src="https://github.com/action-works/cabal-cache/workflows/Tests/badge.svg?branch=main&event=push"></a>
 
 ## Documentation
 
@@ -14,7 +14,7 @@ See ["Caching dependencies to speed up workflows"](https://help.github.com/githu
 
 ```yaml
 - name: Cache multiple paths
-  uses: actions/cache@v2
+  uses: action-works/cabal-cache@v2
   with:
     path: |
       ~/cache
@@ -24,10 +24,10 @@ See ["Caching dependencies to speed up workflows"](https://help.github.com/githu
 
 * Increased performance and improved cache sizes using `zstd` compression for Linux and macOS runners
 * Allowed caching for all events with a ref. See [events that trigger workflow](https://help.github.com/en/actions/reference/events-that-trigger-workflows) for info on which events do not have a `GITHUB_REF`
-* Released the [`@actions/cache`](https://github.com/actions/toolkit/tree/main/packages/cache) npm package to allow other actions to utilize caching
+* Released the [`@action-works/cabal-cache`](https://github.com/actions/toolkit/tree/main/packages/cache) npm package to allow other actions to utilize caching
 * Added a best-effort cleanup step to delete the archive after extraction to reduce storage space
 
-Refer [here](https://github.com/actions/cache/blob/v1/README.md) for previous versions
+Refer [here](https://github.com/action-works/cabal-cache/blob/v1/README.md) for previous versions
 
 ## Usage
 
@@ -67,7 +67,7 @@ jobs:
 
     - name: Cache Primes
       id: cache-primes
-      uses: actions/cache@v2
+      uses: action-works/cabal-cache@v2
       with:
         path: prime-numbers
         key: ${{ runner.os }}-primes
@@ -84,7 +84,7 @@ jobs:
 
 Every programming language and framework has its own way of caching.
 
-See [Examples](examples.md) for a list of `actions/cache` implementations for use with:
+See [Examples](examples.md) for a list of `action-works/cabal-cache` implementations for use with:
 
 - [C# - Nuget](./examples.md#c---nuget)
 - [D - DUB](./examples.md#d---dub)
@@ -115,7 +115,7 @@ A cache key can include any of the contexts, functions, literals, and operators 
 For example, using the [`hashFiles`](https://help.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#hashfiles) function allows you to create a new cache when dependencies change.
 
 ```yaml
-  - uses: actions/cache@v2
+  - uses: action-works/cabal-cache@v2
     with:
       path: | 
         path/to/dependencies
@@ -133,7 +133,7 @@ Additionally, you can use arbitrary command output in a cache key, such as a dat
       echo "::set-output name=date::$(/bin/date -u "+%Y%m%d")"
     shell: bash
 
-  - uses: actions/cache@v2
+  - uses: action-works/cabal-cache@v2
     with:
       path: path/to/dependencies
       key: ${{ runner.os }}-${{ steps.get-date.outputs.date }}-${{ hashFiles('**/lockfiles') }}
@@ -154,7 +154,7 @@ Example:
 steps:
   - uses: actions/checkout@v2
 
-  - uses: actions/cache@v2
+  - uses: action-works/cabal-cache@v2
     id: cache
     with:
       path: path/to/dependencies
@@ -165,10 +165,10 @@ steps:
     run: /install.sh
 ```
 
-> Note: The `id` defined in `actions/cache` must match the `id` in the `if` statement (i.e. `steps.[ID].outputs.cache-hit`)
+> Note: The `id` defined in `action-works/cabal-cache` must match the `id` in the `if` statement (i.e. `steps.[ID].outputs.cache-hit`)
 
 ## Contributing
-We would love for you to contribute to `actions/cache`, pull requests are welcome! Please see the [CONTRIBUTING.md](CONTRIBUTING.md) for more information.
+We would love for you to contribute to `action-works/cabal-cache`, pull requests are welcome! Please see the [CONTRIBUTING.md](CONTRIBUTING.md) for more information.
 
 ## License
 The scripts and documentation in this project are released under the [MIT License](LICENSE)
