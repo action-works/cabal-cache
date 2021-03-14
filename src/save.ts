@@ -1,8 +1,11 @@
 import * as cache from "@actions/cache";
 import * as core from "@actions/core";
+import * as exec from "@actions/exec";
+import * as glob from '@actions/glob';
 
 import { Events, Inputs, State } from "./constants";
 import * as utils from "./utils/actionUtils";
+import * as path from 'path';
 
 async function run(): Promise<void> {
     try {
@@ -23,37 +26,35 @@ async function run(): Promise<void> {
         const state = utils.getCacheState();
 
         // Inputs are re-evaluted before the post action, so we want the original key used for restore
-        const primaryKey = core.getState(State.CachePrimaryKey);
-        if (!primaryKey) {
-            utils.logWarning(`Error retrieving key from state.`);
-            return;
-        }
+        const localArchive = core.getState(State.CacheLocalArchive);
 
-        if (utils.isExactKeyMatch(primaryKey, state)) {
-            core.info(
-                `Cache hit occurred on the primary key ${primaryKey}, not saving cache.`
-            );
-            return;
-        }
+        core.info('Syncing archive to ${localArchive}');
 
-        const cachePaths = utils.getInputAsArray(Inputs.Path, {
-            required: true
-        });
+        await exec.exec(`cabal-cache sync-to-archive --archive-uri ${localArchive}`);
 
-        try {
-            await cache.saveCache(cachePaths, primaryKey, {
+        const globber = await glob.create('.actions-cabal-cache/**/*.tar.gz', {followSymbolicLinks: false});
+
+        for await (const file of globber.globGenerator()) {
+            core.info(`File: ${file}`);
+
+            const relativeFile = path.relative(localArchive, file);
+
+            if (utils.isExactKeyMatch(relativeFile, state)) {
+                core.info(
+                    `Cache hit occurred on the primary key ${relativeFile}, not saving cache.`
+                );
+
+                continue;
+            }
+
+            await cache.saveCache([file], relativeFile, {
                 uploadChunkSize: utils.getInputAsInt(Inputs.UploadChunkSize)
             });
-            core.info(`Cache saved with key: ${primaryKey}`);
-        } catch (error) {
-            if (error.name === cache.ValidationError.name) {
-                throw error;
-            } else if (error.name === cache.ReserveCacheError.name) {
-                core.info(error.message);
-            } else {
-                utils.logWarning(error.message);
-            }
+
+            core.info(`Cache saved with key: ${relativeFile}`);
         }
+
+        core.info('Done paths');
     } catch (error) {
         utils.logWarning(error.message);
     }

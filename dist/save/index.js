@@ -4643,9 +4643,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RefKey = exports.Events = exports.State = exports.Outputs = exports.Inputs = void 0;
 var Inputs;
 (function (Inputs) {
-    Inputs["Key"] = "key";
-    Inputs["Path"] = "path";
-    Inputs["RestoreKeys"] = "restore-keys";
+    Inputs["KeyPrefix"] = "key-prefix";
     Inputs["UploadChunkSize"] = "upload-chunk-size";
 })(Inputs = exports.Inputs || (exports.Inputs = {}));
 var Outputs;
@@ -4654,7 +4652,7 @@ var Outputs;
 })(Outputs = exports.Outputs || (exports.Outputs = {}));
 var State;
 (function (State) {
-    State["CachePrimaryKey"] = "CACHE_KEY";
+    State["CacheLocalArchive"] = "CACHE_LOCAL_ARCHIVE";
     State["CacheMatchedKey"] = "CACHE_RESULT";
 })(State = exports.State || (exports.State = {}));
 var Events;
@@ -45437,12 +45435,23 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __asyncValues = (this && this.__asyncValues) || function (o) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var m = o[Symbol.asyncIterator], i;
+    return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
+    function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
+    function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const cache = __importStar(__webpack_require__(692));
 const core = __importStar(__webpack_require__(470));
+const exec = __importStar(__webpack_require__(986));
+const glob = __importStar(__webpack_require__(281));
 const constants_1 = __webpack_require__(196);
 const utils = __importStar(__webpack_require__(443));
+const path = __importStar(__webpack_require__(622));
 function run() {
+    var e_1, _a;
     return __awaiter(this, void 0, void 0, function* () {
         try {
             if (utils.isGhes()) {
@@ -45455,35 +45464,33 @@ function run() {
             }
             const state = utils.getCacheState();
             // Inputs are re-evaluted before the post action, so we want the original key used for restore
-            const primaryKey = core.getState(constants_1.State.CachePrimaryKey);
-            if (!primaryKey) {
-                utils.logWarning(`Error retrieving key from state.`);
-                return;
-            }
-            if (utils.isExactKeyMatch(primaryKey, state)) {
-                core.info(`Cache hit occurred on the primary key ${primaryKey}, not saving cache.`);
-                return;
-            }
-            const cachePaths = utils.getInputAsArray(constants_1.Inputs.Path, {
-                required: true
-            });
+            const localArchive = core.getState(constants_1.State.CacheLocalArchive);
+            core.info('Syncing archive to ${localArchive}');
+            yield exec.exec(`cabal-cache sync-to-archive --archive-uri ${localArchive}`);
+            const globber = yield glob.create('.actions-cabal-cache/**/*.tar.gz', { followSymbolicLinks: false });
             try {
-                yield cache.saveCache(cachePaths, primaryKey, {
-                    uploadChunkSize: utils.getInputAsInt(constants_1.Inputs.UploadChunkSize)
-                });
-                core.info(`Cache saved with key: ${primaryKey}`);
-            }
-            catch (error) {
-                if (error.name === cache.ValidationError.name) {
-                    throw error;
-                }
-                else if (error.name === cache.ReserveCacheError.name) {
-                    core.info(error.message);
-                }
-                else {
-                    utils.logWarning(error.message);
+                for (var _b = __asyncValues(globber.globGenerator()), _c; _c = yield _b.next(), !_c.done;) {
+                    const file = _c.value;
+                    core.info(`File: ${file}`);
+                    const relativeFile = path.relative(localArchive, file);
+                    if (utils.isExactKeyMatch(relativeFile, state)) {
+                        core.info(`Cache hit occurred on the primary key ${relativeFile}, not saving cache.`);
+                        continue;
+                    }
+                    yield cache.saveCache([file], relativeFile, {
+                        uploadChunkSize: utils.getInputAsInt(constants_1.Inputs.UploadChunkSize)
+                    });
+                    core.info(`Cache saved with key: ${relativeFile}`);
                 }
             }
+            catch (e_1_1) { e_1 = { error: e_1_1 }; }
+            finally {
+                try {
+                    if (_c && !_c.done && (_a = _b.return)) yield _a.call(_b);
+                }
+                finally { if (e_1) throw e_1.error; }
+            }
+            core.info('Done paths');
         }
         catch (error) {
             utils.logWarning(error.message);

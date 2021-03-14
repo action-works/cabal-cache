@@ -1,7 +1,5 @@
 export enum Inputs {
-    Key = "key",
-    Path = "path",
-    RestoreKeys = "restore-keys",
+    KeyPrefix = "key-prefix",
     UploadChunkSize = "upload-chunk-size"
 }
 
@@ -10,7 +8,7 @@ export enum Outputs {
 }
 
 export enum State {
-    CachePrimaryKey = "CACHE_KEY",
+    CacheLocalArchive = "CACHE_LOCAL_ARCHIVE",
     CacheMatchedKey = "CACHE_RESULT"
 }
 
