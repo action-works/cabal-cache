@@ -1,9 +1,43 @@
 import * as cache from "@actions/cache";
 import * as core from "@actions/core";
+import * as exec from "@actions/exec";
+import * as glob from '@actions/glob';
+import * as tc from '@actions/tool-cache';
+import * as io from '@actions/io';
 
 import { Events, Inputs, State } from "./constants";
+import * as fs from 'fs';
+import * as path from 'path';
 import * as utils from "./utils/actionUtils";
 
+async function downloadTool(): Promise<string> {
+    if (process.platform === 'win32') {
+        const cabalCachePath = await tc.downloadTool('https://dl.haskellworks.io/binaries/cabal-cache/1.0.3.0/cabal-cache-x86_64-windows.tar.gz');
+        const cabalCacheExtractedFolder = await tc.extractTar(cabalCachePath);
+        return cabalCacheExtractedFolder;
+    } else if (process.platform === 'darwin') {
+        const cabalCachePath = await tc.downloadTool('https://dl.haskellworks.io/binaries/cabal-cache/1.0.3.0/cabal-cache-x86_64-darwin.tar.gz');
+        const cabalCacheExtractedFolder = await tc.extractTar(cabalCachePath);
+        return cabalCacheExtractedFolder;
+    } else if (process.platform === 'linux') {
+        const cabalCachePath = await tc.downloadTool('https://dl.haskellworks.io/binaries/cabal-cache/1.0.3.0/cabal-cache-x86_64-linux.tar.gz');
+        const cabalCacheExtractedFolder = await tc.extractTar(cabalCachePath);
+        return cabalCacheExtractedFolder;
+    } else {
+        core.setFailed('Download failed');
+        throw 'Download failed 2';
+    }
+}
+
+async function installTool(): Promise<string> {
+    const cabalCachePath = await downloadTool();
+
+    core.addPath(cabalCachePath);
+
+    await exec.exec('cabal-cache version');
+
+    return cabalCachePath;
+}
 async function run(): Promise<void> {
     try {
         if (utils.isGhes()) {
@@ -22,37 +56,60 @@ async function run(): Promise<void> {
             return;
         }
 
-        const primaryKey = core.getInput(Inputs.Key, { required: true });
-        core.saveState(State.CachePrimaryKey, primaryKey);
+        const keyPrefix = core.getInput(Inputs.KeyPrefix, { required: true });
 
-        const restoreKeys = utils.getInputAsArray(Inputs.RestoreKeys);
-        const cachePaths = utils.getInputAsArray(Inputs.Path, {
-            required: true
-        });
+        const localArchive = path.join(process.cwd(), '.actions-cabal-cache', keyPrefix);
+
+        core.info(`Local archive: ${localArchive}`);
+
+        await io.mkdirP(localArchive);
+
+        core.saveState(State.CacheLocalArchive, localArchive);
 
         try {
-            const cacheKey = await cache.restoreCache(
-                cachePaths,
-                primaryKey,
-                restoreKeys
-            );
-            if (!cacheKey) {
-                core.info(
-                    `Cache not found for input keys: ${[
-                        primaryKey,
-                        ...restoreKeys
-                    ].join(", ")}`
-                );
-                return;
+            await installTool();
+
+            if (true) {
+                await exec.exec('cabal-cache plan --output-file .actions-cabal-cache/cache-plan.json');
+
+                let cachePlanRaw = await fs.promises.readFile('.actions-cabal-cache/cache-plan.json', 'utf8');
+
+                let cachePlan: string[][] = JSON.parse(cachePlanRaw);
+
+                for await (const cacheSet of cachePlan) {
+                    for await (const relativeFile of cacheSet) {
+                        core.info(`Relative file: ${relativeFile}`);
+    
+                        const absoluteFile = path.join(localArchive, relativeFile);
+    
+                        const cacheKey = await cache.restoreCache(
+                            [absoluteFile],
+                            relativeFile,
+                            [relativeFile]
+                        );
+    
+                        if (!cacheKey) {
+                            core.info(`Cache not found for input key: ${keyPrefix}`);
+                        } else {
+                            core.info(`Downloaded ${relativeFile}`);
+
+                            break;
+                        }
+                    }
+                }
+
+                core.info('Done downloads');
+
+                const globber = await glob.create('.actions-cabal-cache/**/*.tar.gz', {followSymbolicLinks: false});
+
+                core.info(`localArchive: ${localArchive}`);
+        
+                for await (const file of globber.globGenerator()) {
+                    core.info(`Verified: ${file}`);
+                }
             }
 
-            // Store the matched cache key
-            utils.setCacheState(cacheKey);
-
-            const isExactKeyMatch = utils.isExactKeyMatch(primaryKey, cacheKey);
-            utils.setCacheHitOutput(isExactKeyMatch);
-
-            core.info(`Cache restored from key: ${cacheKey}`);
+            await exec.exec(`cabal-cache sync-from-archive --archive-uri ${localArchive}`);
         } catch (error) {
             if (error.name === cache.ValidationError.name) {
                 throw error;
