@@ -4644,6 +4644,7 @@ exports.RefKey = exports.Events = exports.State = exports.Outputs = exports.Inpu
 var Inputs;
 (function (Inputs) {
     Inputs["KeyPrefix"] = "key-prefix";
+    Inputs["DistDir"] = "dist-dir";
     Inputs["UploadChunkSize"] = "upload-chunk-size";
 })(Inputs = exports.Inputs || (exports.Inputs = {}));
 var Outputs;
@@ -4653,6 +4654,7 @@ var Outputs;
 var State;
 (function (State) {
     State["CacheLocalArchive"] = "CACHE_LOCAL_ARCHIVE";
+    State["CacheDistDirOption"] = "DIST_DIR_OPTION";
     State["CacheMatchedKey"] = "CACHE_RESULT";
 })(State = exports.State || (exports.State = {}));
 var Events;
@@ -45465,8 +45467,9 @@ function run() {
             const state = utils.getCacheState();
             // Inputs are re-evaluted before the post action, so we want the original key used for restore
             const localArchive = core.getState(constants_1.State.CacheLocalArchive);
+            const distDirOption = core.getState(constants_1.State.CacheDistDirOption);
             core.info('Syncing archive to ${localArchive}');
-            yield exec.exec(`cabal-cache sync-to-archive --archive-uri ${localArchive}`);
+            yield exec.exec(`cabal-cache sync-to-archive --archive-uri ${localArchive} ${distDirOption}`);
             const globber = yield glob.create('.actions-cabal-cache/**/*.tar.gz', { followSymbolicLinks: false });
             try {
                 for (var _b = __asyncValues(globber.globGenerator()), _c; _c = yield _b.next(), !_c.done;) {
@@ -45477,9 +45480,19 @@ function run() {
                         core.info(`Cache hit occurred on the primary key ${relativeFile}, not saving cache.`);
                         continue;
                     }
-                    yield cache.saveCache([file], relativeFile, {
-                        uploadChunkSize: utils.getInputAsInt(constants_1.Inputs.UploadChunkSize)
-                    });
+                    try {
+                        yield cache.saveCache([file], relativeFile, {
+                            uploadChunkSize: utils.getInputAsInt(constants_1.Inputs.UploadChunkSize)
+                        });
+                    }
+                    catch (err) {
+                        if (err.name === cache.ReserveCacheError.name) {
+                            core.warning(err);
+                        }
+                        else {
+                            throw err;
+                        }
+                    }
                     core.info(`Cache saved with key: ${relativeFile}`);
                 }
             }

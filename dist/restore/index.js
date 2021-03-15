@@ -4755,6 +4755,7 @@ exports.RefKey = exports.Events = exports.State = exports.Outputs = exports.Inpu
 var Inputs;
 (function (Inputs) {
     Inputs["KeyPrefix"] = "key-prefix";
+    Inputs["DistDir"] = "dist-dir";
     Inputs["UploadChunkSize"] = "upload-chunk-size";
 })(Inputs = exports.Inputs || (exports.Inputs = {}));
 var Outputs;
@@ -4764,6 +4765,7 @@ var Outputs;
 var State;
 (function (State) {
     State["CacheLocalArchive"] = "CACHE_LOCAL_ARCHIVE";
+    State["CacheDistDirOption"] = "DIST_DIR_OPTION";
     State["CacheMatchedKey"] = "CACHE_RESULT";
 })(State = exports.State || (exports.State = {}));
 var Events;
@@ -48394,14 +48396,17 @@ function run() {
                 return;
             }
             const keyPrefix = core.getInput(constants_1.Inputs.KeyPrefix, { required: true });
+            const distDir = core.getInput(constants_1.Inputs.DistDir, { required: false });
+            const distDirOption = distDir != '' ? `--build-path ${distDir}` : '';
             const localArchive = path.join(process.cwd(), '.actions-cabal-cache', keyPrefix);
             core.info(`Local archive: ${localArchive}`);
             yield io.mkdirP(localArchive);
             core.saveState(constants_1.State.CacheLocalArchive, localArchive);
+            core.saveState(constants_1.State.CacheDistDirOption, distDirOption);
             try {
                 yield installTool();
                 if (true) {
-                    yield exec.exec('cabal-cache plan --output-file .actions-cabal-cache/cache-plan.json');
+                    yield exec.exec(`cabal-cache plan --output-file .actions-cabal-cache/cache-plan.json ${distDirOption}`);
                     let cachePlanRaw = yield fs.promises.readFile('.actions-cabal-cache/cache-plan.json', 'utf8');
                     let cachePlan = JSON.parse(cachePlanRaw);
                     try {
@@ -48455,7 +48460,7 @@ function run() {
                         finally { if (e_3) throw e_3.error; }
                     }
                 }
-                yield exec.exec(`cabal-cache sync-from-archive --archive-uri ${localArchive}`);
+                yield exec.exec(`cabal-cache sync-from-archive --archive-uri ${localArchive} ${distDirOption}`);
             }
             catch (error) {
                 if (error.name === cache.ValidationError.name) {

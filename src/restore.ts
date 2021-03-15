@@ -57,6 +57,8 @@ async function run(): Promise<void> {
         }
 
         const keyPrefix = core.getInput(Inputs.KeyPrefix, { required: true });
+        const distDir = core.getInput(Inputs.DistDir, { required: false });
+        const distDirOption = distDir != '' ? `--build-path ${distDir}` : '';
 
         const localArchive = path.join(process.cwd(), '.actions-cabal-cache', keyPrefix);
 
@@ -65,12 +67,13 @@ async function run(): Promise<void> {
         await io.mkdirP(localArchive);
 
         core.saveState(State.CacheLocalArchive, localArchive);
+        core.saveState(State.CacheDistDirOption, distDirOption);
 
         try {
             await installTool();
 
             if (true) {
-                await exec.exec('cabal-cache plan --output-file .actions-cabal-cache/cache-plan.json');
+                await exec.exec(`cabal-cache plan --output-file .actions-cabal-cache/cache-plan.json ${distDirOption}`);
 
                 let cachePlanRaw = await fs.promises.readFile('.actions-cabal-cache/cache-plan.json', 'utf8');
 
@@ -109,7 +112,7 @@ async function run(): Promise<void> {
                 }
             }
 
-            await exec.exec(`cabal-cache sync-from-archive --archive-uri ${localArchive}`);
+            await exec.exec(`cabal-cache sync-from-archive --archive-uri ${localArchive} ${distDirOption}`);
         } catch (error) {
             if (error.name === cache.ValidationError.name) {
                 throw error;

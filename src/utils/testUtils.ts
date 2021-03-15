@@ -11,13 +11,16 @@ export function setInput(name: string, value: string): void {
 
 interface CacheInput {
     keyPrefix: string;
+    distDir: string;
 }
 
 export function setInputs(input: CacheInput): void {
     setInput(Inputs.KeyPrefix, input.keyPrefix);
+    setInput(Inputs.DistDir, input.distDir);
 }
 
 export function clearInputs(): void {
     delete process.env[getInputName(Inputs.KeyPrefix)];
+    delete process.env[getInputName(Inputs.DistDir)];
     delete process.env[getInputName(Inputs.UploadChunkSize)];
 }
