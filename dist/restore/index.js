@@ -48419,12 +48419,12 @@ function run() {
                         try {
                             for (var cacheSet_1 = (e_2 = void 0, __asyncValues(cacheSet)), cacheSet_1_1; cacheSet_1_1 = yield cacheSet_1.next(), !cacheSet_1_1.done;) {
                                 const relativeFile = cacheSet_1_1.value;
-                                core.info(`Relative file: ${relativeFile}`);
                                 const absoluteFile = path.join(localArchive, relativeFile);
+                                core.info(`Cache key: ${relativeFile}, file: ${absoluteFile}`);
                                 try {
-                                    const cacheKey = yield cache.restoreCache([absoluteFile], relativeFile, [relativeFile]);
+                                    const cacheKey = yield cache.restoreCache([absoluteFile], relativeFile, []);
                                     if (!cacheKey) {
-                                        core.info(`Cache not found for input key: ${keyPrefix}`);
+                                        core.info(`Cache not found for cache key: ${cacheKey}`);
                                     }
                                     else {
                                         core.info(`Downloaded ${relativeFile}`);

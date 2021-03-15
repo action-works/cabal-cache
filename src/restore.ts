@@ -84,19 +84,19 @@ async function run(): Promise<void> {
 
             for await (const cacheSet of cachePlan) {
                 for await (const relativeFile of cacheSet) {
-                    core.info(`Relative file: ${relativeFile}`);
-
                     const absoluteFile = path.join(localArchive, relativeFile);
+
+                    core.info(`Cache key: ${relativeFile}, file: ${absoluteFile}`);
 
                     try {
                         const cacheKey = await cache.restoreCache(
                             [absoluteFile],
                             relativeFile,
-                            [relativeFile]
+                            []
                         );
 
                         if (!cacheKey) {
-                            core.info(`Cache not found for input key: ${keyPrefix}`);
+                            core.info(`Cache not found for cache key: ${cacheKey}`);
                         } else {
                             core.info(`Downloaded ${relativeFile}`);
     
