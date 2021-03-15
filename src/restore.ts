@@ -69,59 +69,59 @@ async function run(): Promise<void> {
         core.saveState(State.CacheLocalArchive, localArchive);
         core.saveState(State.CacheDistDirOption, distDirOption);
 
-        try {
-            await installTool();
+        await installTool();
 
-            if (true) {
-                await exec.exec(`cabal-cache plan --output-file .actions-cabal-cache/cache-plan.json ${distDirOption}`);
+        if (true) {
+            await exec.exec(`cabal-cache plan --output-file .actions-cabal-cache/cache-plan.json ${distDirOption}`);
 
-                let cachePlanRaw = await fs.promises.readFile('.actions-cabal-cache/cache-plan.json', 'utf8');
+            let cachePlanRaw = await fs.promises.readFile('.actions-cabal-cache/cache-plan.json', 'utf8');
 
-                let cachePlan: string[][] = JSON.parse(cachePlanRaw);
+            let cachePlan: string[][] = JSON.parse(cachePlanRaw);
 
-                for await (const cacheSet of cachePlan) {
-                    for await (const relativeFile of cacheSet) {
-                        core.info(`Relative file: ${relativeFile}`);
-    
-                        const absoluteFile = path.join(localArchive, relativeFile);
-    
+            for await (const cacheSet of cachePlan) {
+                for await (const relativeFile of cacheSet) {
+                    core.info(`Relative file: ${relativeFile}`);
+
+                    const absoluteFile = path.join(localArchive, relativeFile);
+
+                    try {
                         const cacheKey = await cache.restoreCache(
                             [absoluteFile],
                             relativeFile,
                             [relativeFile]
                         );
-    
+
                         if (!cacheKey) {
                             core.info(`Cache not found for input key: ${keyPrefix}`);
                         } else {
                             core.info(`Downloaded ${relativeFile}`);
-
+    
                             break;
+                        }
+                    } catch (error) {
+                        if (error.name === cache.ValidationError.name) {
+                            throw error;
+                        } else {
+                            utils.logWarning(error.message);
                         }
                     }
                 }
-
-                core.info('Done downloads');
-
-                const globber = await glob.create('.actions-cabal-cache/**/*.tar.gz', {followSymbolicLinks: false});
-
-                core.info(`localArchive: ${localArchive}`);
-        
-                for await (const file of globber.globGenerator()) {
-                    core.info(`Verified: ${file}`);
-                }
             }
 
-            await exec.exec(`cabal-cache sync-from-archive --archive-uri ${localArchive} ${distDirOption}`);
-        } catch (error) {
-            if (error.name === cache.ValidationError.name) {
-                throw error;
-            } else {
-                utils.logWarning(error.message);
-                utils.setCacheHitOutput(false);
+            core.info('Done downloads');
+
+            const globber = await glob.create('.actions-cabal-cache/**/*.tar.gz', {followSymbolicLinks: false});
+
+            core.info(`localArchive: ${localArchive}`);
+    
+            for await (const file of globber.globGenerator()) {
+                core.info(`Verified: ${file}`);
             }
         }
+
+        await exec.exec(`cabal-cache sync-from-archive --archive-uri ${localArchive} ${distDirOption}`);
     } catch (error) {
+        utils.setCacheHitOutput(false);
         core.setFailed(error.message);
     }
 }

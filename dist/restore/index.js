@@ -48403,20 +48403,20 @@ function run() {
             yield io.mkdirP(localArchive);
             core.saveState(constants_1.State.CacheLocalArchive, localArchive);
             core.saveState(constants_1.State.CacheDistDirOption, distDirOption);
-            try {
-                yield installTool();
-                if (true) {
-                    yield exec.exec(`cabal-cache plan --output-file .actions-cabal-cache/cache-plan.json ${distDirOption}`);
-                    let cachePlanRaw = yield fs.promises.readFile('.actions-cabal-cache/cache-plan.json', 'utf8');
-                    let cachePlan = JSON.parse(cachePlanRaw);
-                    try {
-                        for (var cachePlan_1 = __asyncValues(cachePlan), cachePlan_1_1; cachePlan_1_1 = yield cachePlan_1.next(), !cachePlan_1_1.done;) {
-                            const cacheSet = cachePlan_1_1.value;
-                            try {
-                                for (var cacheSet_1 = (e_2 = void 0, __asyncValues(cacheSet)), cacheSet_1_1; cacheSet_1_1 = yield cacheSet_1.next(), !cacheSet_1_1.done;) {
-                                    const relativeFile = cacheSet_1_1.value;
-                                    core.info(`Relative file: ${relativeFile}`);
-                                    const absoluteFile = path.join(localArchive, relativeFile);
+            yield installTool();
+            if (true) {
+                yield exec.exec(`cabal-cache plan --output-file .actions-cabal-cache/cache-plan.json ${distDirOption}`);
+                let cachePlanRaw = yield fs.promises.readFile('.actions-cabal-cache/cache-plan.json', 'utf8');
+                let cachePlan = JSON.parse(cachePlanRaw);
+                try {
+                    for (var cachePlan_1 = __asyncValues(cachePlan), cachePlan_1_1; cachePlan_1_1 = yield cachePlan_1.next(), !cachePlan_1_1.done;) {
+                        const cacheSet = cachePlan_1_1.value;
+                        try {
+                            for (var cacheSet_1 = (e_2 = void 0, __asyncValues(cacheSet)), cacheSet_1_1; cacheSet_1_1 = yield cacheSet_1.next(), !cacheSet_1_1.done;) {
+                                const relativeFile = cacheSet_1_1.value;
+                                core.info(`Relative file: ${relativeFile}`);
+                                const absoluteFile = path.join(localArchive, relativeFile);
+                                try {
                                     const cacheKey = yield cache.restoreCache([absoluteFile], relativeFile, [relativeFile]);
                                     if (!cacheKey) {
                                         core.info(`Cache not found for input key: ${keyPrefix}`);
@@ -48426,53 +48426,53 @@ function run() {
                                         break;
                                     }
                                 }
-                            }
-                            catch (e_2_1) { e_2 = { error: e_2_1 }; }
-                            finally {
-                                try {
-                                    if (cacheSet_1_1 && !cacheSet_1_1.done && (_b = cacheSet_1.return)) yield _b.call(cacheSet_1);
+                                catch (error) {
+                                    if (error.name === cache.ValidationError.name) {
+                                        throw error;
+                                    }
+                                    else {
+                                        utils.logWarning(error.message);
+                                    }
                                 }
-                                finally { if (e_2) throw e_2.error; }
                             }
                         }
-                    }
-                    catch (e_1_1) { e_1 = { error: e_1_1 }; }
-                    finally {
-                        try {
-                            if (cachePlan_1_1 && !cachePlan_1_1.done && (_a = cachePlan_1.return)) yield _a.call(cachePlan_1);
+                        catch (e_2_1) { e_2 = { error: e_2_1 }; }
+                        finally {
+                            try {
+                                if (cacheSet_1_1 && !cacheSet_1_1.done && (_b = cacheSet_1.return)) yield _b.call(cacheSet_1);
+                            }
+                            finally { if (e_2) throw e_2.error; }
                         }
-                        finally { if (e_1) throw e_1.error; }
                     }
-                    core.info('Done downloads');
-                    const globber = yield glob.create('.actions-cabal-cache/**/*.tar.gz', { followSymbolicLinks: false });
-                    core.info(`localArchive: ${localArchive}`);
+                }
+                catch (e_1_1) { e_1 = { error: e_1_1 }; }
+                finally {
                     try {
-                        for (var _d = __asyncValues(globber.globGenerator()), _e; _e = yield _d.next(), !_e.done;) {
-                            const file = _e.value;
-                            core.info(`Verified: ${file}`);
-                        }
+                        if (cachePlan_1_1 && !cachePlan_1_1.done && (_a = cachePlan_1.return)) yield _a.call(cachePlan_1);
                     }
-                    catch (e_3_1) { e_3 = { error: e_3_1 }; }
-                    finally {
-                        try {
-                            if (_e && !_e.done && (_c = _d.return)) yield _c.call(_d);
-                        }
-                        finally { if (e_3) throw e_3.error; }
+                    finally { if (e_1) throw e_1.error; }
+                }
+                core.info('Done downloads');
+                const globber = yield glob.create('.actions-cabal-cache/**/*.tar.gz', { followSymbolicLinks: false });
+                core.info(`localArchive: ${localArchive}`);
+                try {
+                    for (var _d = __asyncValues(globber.globGenerator()), _e; _e = yield _d.next(), !_e.done;) {
+                        const file = _e.value;
+                        core.info(`Verified: ${file}`);
                     }
                 }
-                yield exec.exec(`cabal-cache sync-from-archive --archive-uri ${localArchive} ${distDirOption}`);
-            }
-            catch (error) {
-                if (error.name === cache.ValidationError.name) {
-                    throw error;
-                }
-                else {
-                    utils.logWarning(error.message);
-                    utils.setCacheHitOutput(false);
+                catch (e_3_1) { e_3 = { error: e_3_1 }; }
+                finally {
+                    try {
+                        if (_e && !_e.done && (_c = _d.return)) yield _c.call(_d);
+                    }
+                    finally { if (e_3) throw e_3.error; }
                 }
             }
+            yield exec.exec(`cabal-cache sync-from-archive --archive-uri ${localArchive} ${distDirOption}`);
         }
         catch (error) {
+            utils.setCacheHitOutput(false);
             core.setFailed(error.message);
         }
     });
