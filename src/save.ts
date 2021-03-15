@@ -27,10 +27,11 @@ async function run(): Promise<void> {
 
         // Inputs are re-evaluted before the post action, so we want the original key used for restore
         const localArchive = core.getState(State.CacheLocalArchive);
+        const distDirOption = core.getState(State.CacheDistDirOption);
 
         core.info('Syncing archive to ${localArchive}');
 
-        await exec.exec(`cabal-cache sync-to-archive --archive-uri ${localArchive}`);
+        await exec.exec(`cabal-cache sync-to-archive --archive-uri ${localArchive} ${distDirOption}`);
 
         const globber = await glob.create('.actions-cabal-cache/**/*.tar.gz', {followSymbolicLinks: false});
 
@@ -47,9 +48,17 @@ async function run(): Promise<void> {
                 continue;
             }
 
-            await cache.saveCache([file], relativeFile, {
-                uploadChunkSize: utils.getInputAsInt(Inputs.UploadChunkSize)
-            });
+            try {
+                await cache.saveCache([file], relativeFile, {
+                    uploadChunkSize: utils.getInputAsInt(Inputs.UploadChunkSize)
+                });
+            } catch (err) {
+                if (err.name === cache.ReserveCacheError.name) {
+                  core.warning(err);
+                } else {
+                  throw err;
+                }
+            }
 
             core.info(`Cache saved with key: ${relativeFile}`);
         }
