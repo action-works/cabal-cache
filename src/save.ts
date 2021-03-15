@@ -28,10 +28,11 @@ async function run(): Promise<void> {
         // Inputs are re-evaluted before the post action, so we want the original key used for restore
         const localArchive = core.getState(State.CacheLocalArchive);
         const distDirOption = core.getState(State.CacheDistDirOption);
+        const storePathOption = core.getState(State.CacheStorePathOption);
 
         core.info('Syncing archive to ${localArchive}');
 
-        await exec.exec(`cabal-cache sync-to-archive --archive-uri ${localArchive} ${distDirOption}`);
+        await exec.exec(`cabal-cache sync-to-archive --archive-uri ${localArchive} ${storePathOption} ${distDirOption}`);
 
         const globber = await glob.create('.actions-cabal-cache/**/*.tar.gz', {followSymbolicLinks: false});
 
