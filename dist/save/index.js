@@ -4643,8 +4643,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RefKey = exports.Events = exports.State = exports.Outputs = exports.Inputs = void 0;
 var Inputs;
 (function (Inputs) {
-    Inputs["KeyPrefix"] = "key-prefix";
     Inputs["DistDir"] = "dist-dir";
+    Inputs["KeyPrefix"] = "key-prefix";
+    Inputs["StorePath"] = "store-path";
     Inputs["UploadChunkSize"] = "upload-chunk-size";
 })(Inputs = exports.Inputs || (exports.Inputs = {}));
 var Outputs;
@@ -4653,9 +4654,10 @@ var Outputs;
 })(Outputs = exports.Outputs || (exports.Outputs = {}));
 var State;
 (function (State) {
-    State["CacheLocalArchive"] = "CACHE_LOCAL_ARCHIVE";
     State["CacheDistDirOption"] = "DIST_DIR_OPTION";
+    State["CacheLocalArchive"] = "CACHE_LOCAL_ARCHIVE";
     State["CacheMatchedKey"] = "CACHE_RESULT";
+    State["CacheStorePathOption"] = "STORE_PATH";
 })(State = exports.State || (exports.State = {}));
 var Events;
 (function (Events) {
@@ -45468,8 +45470,9 @@ function run() {
             // Inputs are re-evaluted before the post action, so we want the original key used for restore
             const localArchive = core.getState(constants_1.State.CacheLocalArchive);
             const distDirOption = core.getState(constants_1.State.CacheDistDirOption);
+            const storePathOption = core.getState(constants_1.State.CacheStorePathOption);
             core.info('Syncing archive to ${localArchive}');
-            yield exec.exec(`cabal-cache sync-to-archive --archive-uri ${localArchive} ${distDirOption}`);
+            yield exec.exec(`cabal-cache sync-to-archive --archive-uri ${localArchive} ${storePathOption} ${distDirOption}`);
             const globber = yield glob.create('.actions-cabal-cache/**/*.tar.gz', { followSymbolicLinks: false });
             try {
                 for (var _b = __asyncValues(globber.globGenerator()), _c; _c = yield _b.next(), !_c.done;) {

@@ -1,6 +1,7 @@
 export enum Inputs {
-    KeyPrefix = "key-prefix",
     DistDir = "dist-dir",
+    KeyPrefix = "key-prefix",
+    StorePath = "store-path",
     UploadChunkSize = "upload-chunk-size"
 }
 
@@ -9,9 +10,10 @@ export enum Outputs {
 }
 
 export enum State {
-    CacheLocalArchive = "CACHE_LOCAL_ARCHIVE",
     CacheDistDirOption = "DIST_DIR_OPTION",
-    CacheMatchedKey = "CACHE_RESULT"
+    CacheLocalArchive = "CACHE_LOCAL_ARCHIVE",
+    CacheMatchedKey = "CACHE_RESULT",
+    CacheStorePathOption = "STORE_PATH"
 }
 
 export enum Events {
