@@ -48440,16 +48440,24 @@ function run() {
                                             }
                                         }
                                         catch (error) {
-                                            core.info(`Moo: ${error.name}`);
                                             if (error.name === cache.ValidationError.name) {
                                                 core.info(`Critical`);
                                                 throw error;
                                             }
                                             else {
                                                 utils.logWarning(`${error.name}, ${error.message}`);
-                                                if (error.name.startsWith('Cache service responded with 429')) {
-                                                    core.info('Sleeping for 20s');
-                                                    yield sleep(20000);
+                                                if (error.message.startsWith('Cache service responded with 429')) {
+                                                    core.info('Sleeping for 2s');
+                                                    yield sleep(2000);
+                                                    console.info("Retrying");
+                                                }
+                                                else if (error.message.contains('Cache service responded with 429')) {
+                                                    core.info('Sleeping for 3s');
+                                                    yield sleep(3000);
+                                                    console.info("Retrying");
+                                                }
+                                                else {
+                                                    console.info("wat");
                                                 }
                                             }
                                         }

@@ -121,6 +121,13 @@ async function run(): Promise<void> {
                                     await sleep(2000);
 
                                     console.info("Retrying");
+                                } else if (error.message.contains('Cache service responded with 429')) {
+                                    core.info('Sleeping for 3s');
+                                    await sleep(3000);
+
+                                    console.info("Retrying");
+                                } else {
+                                    console.info("wat");
                                 }
                             }
                         }
