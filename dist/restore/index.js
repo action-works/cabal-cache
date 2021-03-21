@@ -48383,8 +48383,13 @@ function installTool() {
         return cabalCachePath;
     });
 }
+function sleep(ms) {
+    return __awaiter(this, void 0, void 0, function* () {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    });
+}
 function run() {
-    var e_1, _a, e_2, _b, e_3, _c;
+    var e_1, _a, e_2, _b, e_3, _c, e_4, _d;
     return __awaiter(this, void 0, void 0, function* () {
         try {
             if (utils.isGhes()) {
@@ -48422,22 +48427,48 @@ function run() {
                                 const absoluteFile = path.join(localArchive, relativeFile);
                                 core.info(`Cache key: ${relativeFile}, file: ${absoluteFile}`);
                                 try {
-                                    const cacheKey = yield cache.restoreCache([absoluteFile], relativeFile, []);
-                                    if (!cacheKey) {
-                                        core.info(`Cache not found for cache key: ${cacheKey}`);
-                                    }
-                                    else {
-                                        core.info(`Downloaded ${relativeFile}`);
-                                        break;
+                                    for (var _e = (e_3 = void 0, __asyncValues([1, 2, 3])), _f; _f = yield _e.next(), !_f.done;) {
+                                        const i = _f.value;
+                                        try {
+                                            const cacheKey = yield cache.restoreCache([absoluteFile], relativeFile, []);
+                                            if (!cacheKey) {
+                                                core.info(`Cache not found for cache key: ${relativeFile}`);
+                                            }
+                                            else {
+                                                core.info(`Downloaded ${relativeFile}`);
+                                                break;
+                                            }
+                                        }
+                                        catch (error) {
+                                            if (error.name === cache.ValidationError.name) {
+                                                core.info(`Critical`);
+                                                throw error;
+                                            }
+                                            else {
+                                                utils.logWarning(`${error.name}, ${error.message}`);
+                                                if (error.message.startsWith('Cache service responded with 429')) {
+                                                    core.info('Sleeping for 2s');
+                                                    yield sleep(2000);
+                                                    console.info("Retrying");
+                                                }
+                                                else if (error.message.contains('Cache service responded with 429')) {
+                                                    core.info('Sleeping for 3s');
+                                                    yield sleep(3000);
+                                                    console.info("Retrying");
+                                                }
+                                                else {
+                                                    console.info("wat");
+                                                }
+                                            }
+                                        }
                                     }
                                 }
-                                catch (error) {
-                                    if (error.name === cache.ValidationError.name) {
-                                        throw error;
+                                catch (e_3_1) { e_3 = { error: e_3_1 }; }
+                                finally {
+                                    try {
+                                        if (_f && !_f.done && (_c = _e.return)) yield _c.call(_e);
                                     }
-                                    else {
-                                        utils.logWarning(error.message);
-                                    }
+                                    finally { if (e_3) throw e_3.error; }
                                 }
                             }
                         }
@@ -48461,17 +48492,17 @@ function run() {
                 const globber = yield glob.create('.actions-cabal-cache/**/*.tar.gz', { followSymbolicLinks: false });
                 core.info(`localArchive: ${localArchive}`);
                 try {
-                    for (var _d = __asyncValues(globber.globGenerator()), _e; _e = yield _d.next(), !_e.done;) {
-                        const file = _e.value;
+                    for (var _g = __asyncValues(globber.globGenerator()), _h; _h = yield _g.next(), !_h.done;) {
+                        const file = _h.value;
                         core.info(`Verified: ${file}`);
                     }
                 }
-                catch (e_3_1) { e_3 = { error: e_3_1 }; }
+                catch (e_4_1) { e_4 = { error: e_4_1 }; }
                 finally {
                     try {
-                        if (_e && !_e.done && (_c = _d.return)) yield _c.call(_d);
+                        if (_h && !_h.done && (_d = _g.return)) yield _d.call(_g);
                     }
-                    finally { if (e_3) throw e_3.error; }
+                    finally { if (e_4) throw e_4.error; }
                 }
             }
             yield exec.exec(`cabal-cache sync-from-archive --archive-uri ${localArchive} ${storePathOption} ${distDirOption}`);

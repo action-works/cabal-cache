@@ -38,6 +38,11 @@ async function installTool(): Promise<string> {
 
     return cabalCachePath;
 }
+
+async function sleep(ms: number): Promise<NodeJS.Timeout> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function run(): Promise<void> {
     try {
         if (utils.isGhes()) {
@@ -88,25 +93,43 @@ async function run(): Promise<void> {
 
                     core.info(`Cache key: ${relativeFile}, file: ${absoluteFile}`);
 
-                    try {
-                        const cacheKey = await cache.restoreCache(
-                            [absoluteFile],
-                            relativeFile,
-                            []
-                        );
+                    for await (const i of [1, 2, 3]) {
+                        try {
+                            const cacheKey = await cache.restoreCache(
+                                [absoluteFile],
+                                relativeFile,
+                                []
+                            );
 
-                        if (!cacheKey) {
-                            core.info(`Cache not found for cache key: ${cacheKey}`);
-                        } else {
-                            core.info(`Downloaded ${relativeFile}`);
-    
-                            break;
-                        }
-                    } catch (error) {
-                        if (error.name === cache.ValidationError.name) {
-                            throw error;
-                        } else {
-                            utils.logWarning(error.message);
+                            if (!cacheKey) {
+                                core.info(`Cache not found for cache key: ${relativeFile}`);
+                            } else {
+                                core.info(`Downloaded ${relativeFile}`);
+        
+                                break;
+                            }
+                        } catch (error) {
+                            if (error.name === cache.ValidationError.name) {
+                                core.info(`Critical`);
+
+                                throw error;
+                            } else {
+                                utils.logWarning(`${error.name}, ${error.message}`);
+
+                                if (error.message.startsWith('Cache service responded with 429')) {
+                                    core.info('Sleeping for 2s');
+                                    await sleep(2000);
+
+                                    console.info("Retrying");
+                                } else if (error.message.contains('Cache service responded with 429')) {
+                                    core.info('Sleeping for 3s');
+                                    await sleep(3000);
+
+                                    console.info("Retrying");
+                                } else {
+                                    console.info("wat");
+                                }
+                            }
                         }
                     }
                 }
