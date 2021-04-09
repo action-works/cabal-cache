@@ -4643,6 +4643,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RefKey = exports.Events = exports.State = exports.Outputs = exports.Inputs = void 0;
 var Inputs;
 (function (Inputs) {
+    Inputs["Key"] = "key";
+    Inputs["Path"] = "path";
+    Inputs["RestoreKeys"] = "restore-keys";
     Inputs["DistDir"] = "dist-dir";
     Inputs["KeyPrefix"] = "key-prefix";
     Inputs["StorePath"] = "store-path";
@@ -4654,9 +4657,10 @@ var Outputs;
 })(Outputs = exports.Outputs || (exports.Outputs = {}));
 var State;
 (function (State) {
+    State["CachePrimaryKey"] = "CACHE_KEY";
+    State["CacheMatchedKey"] = "CACHE_RESULT";
     State["CacheDistDirOption"] = "DIST_DIR_OPTION";
     State["CacheLocalArchive"] = "CACHE_LOCAL_ARCHIVE";
-    State["CacheMatchedKey"] = "CACHE_RESULT";
     State["CacheStorePathOption"] = "STORE_PATH";
 })(State = exports.State || (exports.State = {}));
 var Events;
@@ -45468,6 +45472,35 @@ function run() {
             }
             const state = utils.getCacheState();
             // Inputs are re-evaluted before the post action, so we want the original key used for restore
+            const primaryKey = core.getState(constants_1.State.CachePrimaryKey);
+            if (!primaryKey) {
+                utils.logWarning(`Error retrieving key from state.`);
+                return;
+            }
+            if (utils.isExactKeyMatch(primaryKey, state)) {
+                core.info(`Cache hit occurred on the primary key ${primaryKey}, not saving cache.`);
+                return;
+            }
+            const cachePaths = utils.getInputAsArray(constants_1.Inputs.Path, {
+                required: true
+            });
+            try {
+                yield cache.saveCache(cachePaths, primaryKey, {
+                    uploadChunkSize: utils.getInputAsInt(constants_1.Inputs.UploadChunkSize)
+                });
+                core.info(`Cache saved with key: ${primaryKey}`);
+            }
+            catch (error) {
+                if (error.name === cache.ValidationError.name) {
+                    throw error;
+                }
+                else if (error.name === cache.ReserveCacheError.name) {
+                    core.info(error.message);
+                }
+                else {
+                    utils.logWarning(error.message);
+                }
+            }
             const localArchive = core.getState(constants_1.State.CacheLocalArchive);
             const distDirOption = core.getState(constants_1.State.CacheDistDirOption);
             const storePathOption = core.getState(constants_1.State.CacheStorePathOption);

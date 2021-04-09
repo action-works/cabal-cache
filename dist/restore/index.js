@@ -4754,6 +4754,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RefKey = exports.Events = exports.State = exports.Outputs = exports.Inputs = void 0;
 var Inputs;
 (function (Inputs) {
+    Inputs["Key"] = "key";
+    Inputs["Path"] = "path";
+    Inputs["RestoreKeys"] = "restore-keys";
     Inputs["DistDir"] = "dist-dir";
     Inputs["KeyPrefix"] = "key-prefix";
     Inputs["StorePath"] = "store-path";
@@ -4765,9 +4768,10 @@ var Outputs;
 })(Outputs = exports.Outputs || (exports.Outputs = {}));
 var State;
 (function (State) {
+    State["CachePrimaryKey"] = "CACHE_KEY";
+    State["CacheMatchedKey"] = "CACHE_RESULT";
     State["CacheDistDirOption"] = "DIST_DIR_OPTION";
     State["CacheLocalArchive"] = "CACHE_LOCAL_ARCHIVE";
-    State["CacheMatchedKey"] = "CACHE_RESULT";
     State["CacheStorePathOption"] = "STORE_PATH";
 })(State = exports.State || (exports.State = {}));
 var Events;
@@ -48389,7 +48393,7 @@ function sleep(ms) {
     });
 }
 function run() {
-    var e_1, _a, e_2, _b, e_3, _c, e_4, _d;
+    var e_1, _a, e_2, _b, e_3, _c;
     return __awaiter(this, void 0, void 0, function* () {
         try {
             if (utils.isGhes()) {
@@ -48401,6 +48405,36 @@ function run() {
             if (!utils.isValidEvent()) {
                 utils.logWarning(`Event Validation Error: The event type ${process.env[constants_1.Events.Key]} is not supported because it's not tied to a branch or tag ref.`);
                 return;
+            }
+            const primaryKey = core.getInput(constants_1.Inputs.Key, { required: true });
+            core.saveState(constants_1.State.CachePrimaryKey, primaryKey);
+            const restoreKeys = utils.getInputAsArray(constants_1.Inputs.RestoreKeys);
+            const cachePaths = utils.getInputAsArray(constants_1.Inputs.Path, {
+                required: true
+            });
+            try {
+                const cacheKey = yield cache.restoreCache(cachePaths, primaryKey, restoreKeys);
+                if (!cacheKey) {
+                    core.info(`Cache not found for input keys: ${[
+                        primaryKey,
+                        ...restoreKeys
+                    ].join(", ")}`);
+                    return;
+                }
+                // Store the matched cache key
+                utils.setCacheState(cacheKey);
+                const isExactKeyMatch = utils.isExactKeyMatch(primaryKey, cacheKey);
+                utils.setCacheHitOutput(isExactKeyMatch);
+                core.info(`Cache restored from key: ${cacheKey}`);
+            }
+            catch (error) {
+                if (error.name === cache.ValidationError.name) {
+                    throw error;
+                }
+                else {
+                    utils.logWarning(error.message);
+                    utils.setCacheHitOutput(false);
+                }
             }
             const keyPrefix = core.getInput(constants_1.Inputs.KeyPrefix, { required: true });
             const storePath = core.getInput(constants_1.Inputs.StorePath, { required: false });
@@ -48418,6 +48452,8 @@ function run() {
                 yield exec.exec(`cabal-cache plan --output-file .actions-cabal-cache/cache-plan.json ${storePathOption} ${distDirOption}`);
                 let cachePlanRaw = yield fs.promises.readFile('.actions-cabal-cache/cache-plan.json', 'utf8');
                 let cachePlan = JSON.parse(cachePlanRaw);
+                var missCount = 0;
+                var timeoutCount = 0;
                 try {
                     for (var cachePlan_1 = __asyncValues(cachePlan), cachePlan_1_1; cachePlan_1_1 = yield cachePlan_1.next(), !cachePlan_1_1.done;) {
                         const cacheSet = cachePlan_1_1.value;
@@ -48427,48 +48463,38 @@ function run() {
                                 const absoluteFile = path.join(localArchive, relativeFile);
                                 core.info(`Cache key: ${relativeFile}, file: ${absoluteFile}`);
                                 try {
-                                    for (var _e = (e_3 = void 0, __asyncValues([1, 2, 3])), _f; _f = yield _e.next(), !_f.done;) {
-                                        const i = _f.value;
-                                        try {
-                                            const cacheKey = yield cache.restoreCache([absoluteFile], relativeFile, []);
-                                            if (!cacheKey) {
-                                                core.info(`Cache not found for cache key: ${relativeFile}`);
-                                            }
-                                            else {
-                                                core.info(`Downloaded ${relativeFile}`);
-                                                break;
-                                            }
-                                        }
-                                        catch (error) {
-                                            if (error.name === cache.ValidationError.name) {
-                                                core.info(`Critical`);
-                                                throw error;
-                                            }
-                                            else {
-                                                utils.logWarning(`${error.name}, ${error.message}`);
-                                                if (error.message.startsWith('Cache service responded with 429')) {
-                                                    core.info('Sleeping for 2s');
-                                                    yield sleep(2000);
-                                                    console.info("Retrying");
-                                                }
-                                                else if (error.message.contains('Cache service responded with 429')) {
-                                                    core.info('Sleeping for 3s');
-                                                    yield sleep(3000);
-                                                    console.info("Retrying");
-                                                }
-                                                else {
-                                                    console.info("wat");
-                                                }
-                                            }
-                                        }
+                                    const cacheKey = yield cache.restoreCache([absoluteFile], relativeFile, []);
+                                    if (!cacheKey) {
+                                        core.info(`Cache not found for cache key: ${relativeFile}`);
+                                    }
+                                    else {
+                                        core.info(`Downloaded ${relativeFile}`);
+                                        break;
                                     }
                                 }
-                                catch (e_3_1) { e_3 = { error: e_3_1 }; }
-                                finally {
-                                    try {
-                                        if (_f && !_f.done && (_c = _e.return)) yield _c.call(_e);
+                                catch (error) {
+                                    if (error.name === cache.ValidationError.name) {
+                                        core.info(`Critical`);
+                                        throw error;
                                     }
-                                    finally { if (e_3) throw e_3.error; }
+                                    else {
+                                        utils.logWarning(`${error.name}, ${error.message}`);
+                                        if (error.message.startsWith('Cache service responded with 429')) {
+                                            core.info('A: Cache service responded with 429');
+                                            timeoutCount += 1;
+                                        }
+                                        else if (error.message.contains('Cache service responded with 429')) {
+                                            core.info('B: Cache service responded with 429');
+                                            timeoutCount += 1;
+                                        }
+                                        else {
+                                            console.info("wat");
+                                        }
+                                        missCount += 1;
+                                    }
+                                }
+                                if (missCount > 10 || timeoutCount > 0) {
+                                    break;
                                 }
                             }
                         }
@@ -48479,6 +48505,9 @@ function run() {
                             }
                             finally { if (e_2) throw e_2.error; }
                         }
+                        if (missCount > 10 || timeoutCount > 0) {
+                            break;
+                        }
                     }
                 }
                 catch (e_1_1) { e_1 = { error: e_1_1 }; }
@@ -48488,21 +48517,26 @@ function run() {
                     }
                     finally { if (e_1) throw e_1.error; }
                 }
-                core.info('Done downloads');
+                if (missCount > 10 || timeoutCount > 0) {
+                    core.info("Ending restore cache early due to download timeouts");
+                }
+                else {
+                    core.info('Done downloads');
+                }
                 const globber = yield glob.create('.actions-cabal-cache/**/*.tar.gz', { followSymbolicLinks: false });
                 core.info(`localArchive: ${localArchive}`);
                 try {
-                    for (var _g = __asyncValues(globber.globGenerator()), _h; _h = yield _g.next(), !_h.done;) {
-                        const file = _h.value;
+                    for (var _d = __asyncValues(globber.globGenerator()), _e; _e = yield _d.next(), !_e.done;) {
+                        const file = _e.value;
                         core.info(`Verified: ${file}`);
                     }
                 }
-                catch (e_4_1) { e_4 = { error: e_4_1 }; }
+                catch (e_3_1) { e_3 = { error: e_3_1 }; }
                 finally {
                     try {
-                        if (_h && !_h.done && (_d = _g.return)) yield _d.call(_g);
+                        if (_e && !_e.done && (_c = _d.return)) yield _c.call(_d);
                     }
-                    finally { if (e_4) throw e_4.error; }
+                    finally { if (e_3) throw e_3.error; }
                 }
             }
             yield exec.exec(`cabal-cache sync-from-archive --archive-uri ${localArchive} ${storePathOption} ${distDirOption}`);

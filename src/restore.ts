@@ -61,6 +61,46 @@ async function run(): Promise<void> {
             return;
         }
 
+        const primaryKey = core.getInput(Inputs.Key, { required: true });
+        core.saveState(State.CachePrimaryKey, primaryKey);
+
+        const restoreKeys = utils.getInputAsArray(Inputs.RestoreKeys);
+        const cachePaths = utils.getInputAsArray(Inputs.Path, {
+            required: true
+        });
+
+        try {
+            const cacheKey = await cache.restoreCache(
+                cachePaths,
+                primaryKey,
+                restoreKeys
+            );
+            if (!cacheKey) {
+                core.info(
+                    `Cache not found for input keys: ${[
+                        primaryKey,
+                        ...restoreKeys
+                    ].join(", ")}`
+                );
+                return;
+            }
+
+            // Store the matched cache key
+            utils.setCacheState(cacheKey);
+
+            const isExactKeyMatch = utils.isExactKeyMatch(primaryKey, cacheKey);
+            utils.setCacheHitOutput(isExactKeyMatch);
+
+            core.info(`Cache restored from key: ${cacheKey}`);
+        } catch (error) {
+            if (error.name === cache.ValidationError.name) {
+                throw error;
+            } else {
+                utils.logWarning(error.message);
+                utils.setCacheHitOutput(false);
+            }
+        }
+
         const keyPrefix = core.getInput(Inputs.KeyPrefix, { required: true });
         const storePath = core.getInput(Inputs.StorePath, { required: false });
         const distDir = core.getInput(Inputs.DistDir, { required: false });
@@ -87,60 +127,71 @@ async function run(): Promise<void> {
 
             let cachePlan: string[][] = JSON.parse(cachePlanRaw);
 
+            var missCount = 0;
+            var timeoutCount = 0;
+
             for await (const cacheSet of cachePlan) {
                 for await (const relativeFile of cacheSet) {
                     const absoluteFile = path.join(localArchive, relativeFile);
 
                     core.info(`Cache key: ${relativeFile}, file: ${absoluteFile}`);
 
-                    for await (const i of [1, 2, 3]) {
-                        try {
-                            const cacheKey = await cache.restoreCache(
-                                [absoluteFile],
-                                relativeFile,
-                                []
-                            );
+                    try {
+                        const cacheKey = await cache.restoreCache(
+                            [absoluteFile],
+                            relativeFile,
+                            []
+                        );
 
-                            if (!cacheKey) {
-                                core.info(`Cache not found for cache key: ${relativeFile}`);
+                        if (!cacheKey) {
+                            core.info(`Cache not found for cache key: ${relativeFile}`);
+                        } else {
+                            core.info(`Downloaded ${relativeFile}`);
+
+                            break;
+                        }
+                    } catch (error) {
+                        if (error.name === cache.ValidationError.name) {
+                            core.info(`Critical`);
+
+                            throw error;
+                        } else {
+                            utils.logWarning(`${error.name}, ${error.message}`);
+
+                            if (error.message.startsWith('Cache service responded with 429')) {
+                                core.info('A: Cache service responded with 429');
+                                timeoutCount += 1;
+                            } else if (error.message.contains('Cache service responded with 429')) {
+                                core.info('B: Cache service responded with 429');
+                                timeoutCount += 1;
                             } else {
-                                core.info(`Downloaded ${relativeFile}`);
-        
-                                break;
+                                console.info("wat");
                             }
-                        } catch (error) {
-                            if (error.name === cache.ValidationError.name) {
-                                core.info(`Critical`);
 
-                                throw error;
-                            } else {
-                                utils.logWarning(`${error.name}, ${error.message}`);
-
-                                if (error.message.startsWith('Cache service responded with 429')) {
-                                    core.info('Sleeping for 2s');
-                                    await sleep(2000);
-
-                                    console.info("Retrying");
-                                } else if (error.message.contains('Cache service responded with 429')) {
-                                    core.info('Sleeping for 3s');
-                                    await sleep(3000);
-
-                                    console.info("Retrying");
-                                } else {
-                                    console.info("wat");
-                                }
-                            }
+                            missCount += 1;
                         }
                     }
+
+                    if (missCount > 10 || timeoutCount > 0) {
+                        break;
+                    }
+                }
+
+                if (missCount > 10 || timeoutCount > 0) {
+                    break;
                 }
             }
 
-            core.info('Done downloads');
+            if (missCount > 10 || timeoutCount > 0) {
+                core.info("Ending restore cache early due to download timeouts");
+            } else {
+                core.info('Done downloads');
+            }
 
             const globber = await glob.create('.actions-cabal-cache/**/*.tar.gz', {followSymbolicLinks: false});
 
             core.info(`localArchive: ${localArchive}`);
-    
+
             for await (const file of globber.globGenerator()) {
                 core.info(`Verified: ${file}`);
             }

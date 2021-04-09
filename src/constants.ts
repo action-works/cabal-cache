@@ -1,4 +1,7 @@
 export enum Inputs {
+    Key = "key",
+    Path = "path",
+    RestoreKeys = "restore-keys",
     DistDir = "dist-dir",
     KeyPrefix = "key-prefix",
     StorePath = "store-path",
@@ -10,9 +13,10 @@ export enum Outputs {
 }
 
 export enum State {
+    CachePrimaryKey = "CACHE_KEY",
+    CacheMatchedKey = "CACHE_RESULT",
     CacheDistDirOption = "DIST_DIR_OPTION",
     CacheLocalArchive = "CACHE_LOCAL_ARCHIVE",
-    CacheMatchedKey = "CACHE_RESULT",
     CacheStorePathOption = "STORE_PATH"
 }
 

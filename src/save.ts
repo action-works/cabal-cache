@@ -26,6 +26,38 @@ async function run(): Promise<void> {
         const state = utils.getCacheState();
 
         // Inputs are re-evaluted before the post action, so we want the original key used for restore
+        const primaryKey = core.getState(State.CachePrimaryKey);
+        if (!primaryKey) {
+            utils.logWarning(`Error retrieving key from state.`);
+            return;
+        }
+
+        if (utils.isExactKeyMatch(primaryKey, state)) {
+            core.info(
+                `Cache hit occurred on the primary key ${primaryKey}, not saving cache.`
+            );
+            return;
+        }
+
+        const cachePaths = utils.getInputAsArray(Inputs.Path, {
+            required: true
+        });
+
+        try {
+            await cache.saveCache(cachePaths, primaryKey, {
+                uploadChunkSize: utils.getInputAsInt(Inputs.UploadChunkSize)
+            });
+            core.info(`Cache saved with key: ${primaryKey}`);
+        } catch (error) {
+            if (error.name === cache.ValidationError.name) {
+                throw error;
+            } else if (error.name === cache.ReserveCacheError.name) {
+                core.info(error.message);
+            } else {
+                utils.logWarning(error.message);
+            }
+        }
+
         const localArchive = core.getState(State.CacheLocalArchive);
         const distDirOption = core.getState(State.CacheDistDirOption);
         const storePathOption = core.getState(State.CacheStorePathOption);
