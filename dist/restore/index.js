@@ -4758,6 +4758,9 @@ var Inputs;
     Inputs["KeyPrefix"] = "key-prefix";
     Inputs["StorePath"] = "store-path";
     Inputs["UploadChunkSize"] = "upload-chunk-size";
+    Inputs["HostName"] = "host-name";
+    Inputs["HostPort"] = "host-port";
+    Inputs["HostSsl"] = "host-ssl";
 })(Inputs = exports.Inputs || (exports.Inputs = {}));
 var Outputs;
 (function (Outputs) {
@@ -4769,6 +4772,9 @@ var State;
     State["CacheLocalArchive"] = "CACHE_LOCAL_ARCHIVE";
     State["CacheMatchedKey"] = "CACHE_RESULT";
     State["CacheStorePathOption"] = "STORE_PATH";
+    State["CacheHostNameOption"] = "HOST_NAME";
+    State["CacheHostPortOption"] = "HOST_PORT";
+    State["CacheHostSslOption"] = "HOST_SSL";
 })(State = exports.State || (exports.State = {}));
 var Events;
 (function (Events) {
@@ -48405,14 +48411,23 @@ function run() {
             const keyPrefix = core.getInput(constants_1.Inputs.KeyPrefix, { required: true });
             const storePath = core.getInput(constants_1.Inputs.StorePath, { required: false });
             const distDir = core.getInput(constants_1.Inputs.DistDir, { required: false });
+            const hostName = core.getInput(constants_1.Inputs.HostName, { required: false });
+            const hostPort = core.getInput(constants_1.Inputs.HostPort, { required: false });
+            const hostSsl = core.getInput(constants_1.Inputs.HostSsl, { required: false });
             const distDirOption = distDir != '' ? `--build-path ${distDir}` : '';
             const storePathOption = distDir != '' ? `--store-path ${storePath}` : '';
+            const hostNameOption = distDir != '' ? `--host-name-override ${hostName}` : '';
+            const hostPortOption = distDir != '' ? `--host-port-override ${hostPort}` : '';
+            const hostSslOption = distDir != '' ? `--host-ssl-override ${hostSsl}` : '';
             const localArchive = path.join(process.cwd(), '.actions-cabal-cache', keyPrefix);
             core.info(`Local archive: ${localArchive}`);
             yield io.mkdirP(localArchive);
             core.saveState(constants_1.State.CacheLocalArchive, localArchive);
             core.saveState(constants_1.State.CacheDistDirOption, distDirOption);
             core.saveState(constants_1.State.CacheStorePathOption, storePathOption);
+            core.saveState(constants_1.State.CacheHostNameOption, hostNameOption);
+            core.saveState(constants_1.State.CacheHostPortOption, hostPortOption);
+            core.saveState(constants_1.State.CacheHostSslOption, hostSslOption);
             yield installTool();
             if (true) {
                 yield exec.exec(`cabal-cache plan --output-file .actions-cabal-cache/cache-plan.json ${storePathOption} ${distDirOption}`);
@@ -48505,7 +48520,13 @@ function run() {
                     finally { if (e_4) throw e_4.error; }
                 }
             }
-            yield exec.exec(`cabal-cache sync-from-archive --archive-uri ${localArchive} ${storePathOption} ${distDirOption}`);
+            yield exec.exec(`cabal-cache sync-from-archive --archive-uri ${localArchive}` +
+                ` ${storePathOption} ` +
+                ` ${distDirOption}` +
+                ` ${hostNameOption}` +
+                ` ${hostPortOption}` +
+                ` ${hostSslOption}` +
+                "");
         }
         catch (error) {
             utils.setCacheHitOutput(false);

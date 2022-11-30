@@ -29,10 +29,19 @@ async function run(): Promise<void> {
         const localArchive = core.getState(State.CacheLocalArchive);
         const distDirOption = core.getState(State.CacheDistDirOption);
         const storePathOption = core.getState(State.CacheStorePathOption);
+        const hostNameOption = core.getState(State.CacheHostNameOption);
+        const hostPortOption = core.getState(State.CacheHostPortOption);
+        const hostSslOption = core.getState(State.CacheHostSslOption);
 
         core.info('Syncing archive to ${localArchive}');
 
-        await exec.exec(`cabal-cache sync-to-archive --archive-uri ${localArchive} ${storePathOption} ${distDirOption}`);
+        await exec.exec(`cabal-cache sync-to-archive --archive-uri ${localArchive}` +
+            ` ${storePathOption}` +
+            ` ${distDirOption}` +
+            ` ${hostNameOption}` +
+            ` ${hostPortOption}` +
+            ` ${hostSslOption}` +
+            "");
 
         const globber = await glob.create('.actions-cabal-cache/**/*.tar.gz', {followSymbolicLinks: false});
 

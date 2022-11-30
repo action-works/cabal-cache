@@ -4647,6 +4647,9 @@ var Inputs;
     Inputs["KeyPrefix"] = "key-prefix";
     Inputs["StorePath"] = "store-path";
     Inputs["UploadChunkSize"] = "upload-chunk-size";
+    Inputs["HostName"] = "host-name";
+    Inputs["HostPort"] = "host-port";
+    Inputs["HostSsl"] = "host-ssl";
 })(Inputs = exports.Inputs || (exports.Inputs = {}));
 var Outputs;
 (function (Outputs) {
@@ -4658,6 +4661,9 @@ var State;
     State["CacheLocalArchive"] = "CACHE_LOCAL_ARCHIVE";
     State["CacheMatchedKey"] = "CACHE_RESULT";
     State["CacheStorePathOption"] = "STORE_PATH";
+    State["CacheHostNameOption"] = "HOST_NAME";
+    State["CacheHostPortOption"] = "HOST_PORT";
+    State["CacheHostSslOption"] = "HOST_SSL";
 })(State = exports.State || (exports.State = {}));
 var Events;
 (function (Events) {
@@ -45471,8 +45477,17 @@ function run() {
             const localArchive = core.getState(constants_1.State.CacheLocalArchive);
             const distDirOption = core.getState(constants_1.State.CacheDistDirOption);
             const storePathOption = core.getState(constants_1.State.CacheStorePathOption);
+            const hostNameOption = core.getState(constants_1.State.CacheHostNameOption);
+            const hostPortOption = core.getState(constants_1.State.CacheHostPortOption);
+            const hostSslOption = core.getState(constants_1.State.CacheHostSslOption);
             core.info('Syncing archive to ${localArchive}');
-            yield exec.exec(`cabal-cache sync-to-archive --archive-uri ${localArchive} ${storePathOption} ${distDirOption}`);
+            yield exec.exec(`cabal-cache sync-to-archive --archive-uri ${localArchive}` +
+                ` ${storePathOption}` +
+                ` ${distDirOption}` +
+                ` ${hostNameOption}` +
+                ` ${hostPortOption}` +
+                ` ${hostSslOption}` +
+                "");
             const globber = yield glob.create('.actions-cabal-cache/**/*.tar.gz', { followSymbolicLinks: false });
             try {
                 for (var _b = __asyncValues(globber.globGenerator()), _c; _c = yield _b.next(), !_c.done;) {

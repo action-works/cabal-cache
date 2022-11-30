@@ -64,9 +64,15 @@ async function run(): Promise<void> {
         const keyPrefix = core.getInput(Inputs.KeyPrefix, { required: true });
         const storePath = core.getInput(Inputs.StorePath, { required: false });
         const distDir = core.getInput(Inputs.DistDir, { required: false });
+        const hostName = core.getInput(Inputs.HostName, { required: false });
+        const hostPort = core.getInput(Inputs.HostPort, { required: false });
+        const hostSsl = core.getInput(Inputs.HostSsl, { required: false });
 
         const distDirOption = distDir != '' ? `--build-path ${distDir}` : '';
         const storePathOption = distDir != '' ? `--store-path ${storePath}` : '';
+        const hostNameOption = distDir != '' ? `--host-name-override ${hostName}` : '';
+        const hostPortOption = distDir != '' ? `--host-port-override ${hostPort}` : '';
+        const hostSslOption = distDir != '' ? `--host-ssl-override ${hostSsl}` : '';
 
         const localArchive = path.join(process.cwd(), '.actions-cabal-cache', keyPrefix);
 
@@ -77,6 +83,9 @@ async function run(): Promise<void> {
         core.saveState(State.CacheLocalArchive, localArchive);
         core.saveState(State.CacheDistDirOption, distDirOption);
         core.saveState(State.CacheStorePathOption, storePathOption);
+        core.saveState(State.CacheHostNameOption, hostNameOption);
+        core.saveState(State.CacheHostPortOption, hostPortOption);
+        core.saveState(State.CacheHostSslOption, hostSslOption);
 
         await installTool();
 
@@ -146,7 +155,13 @@ async function run(): Promise<void> {
             }
         }
 
-        await exec.exec(`cabal-cache sync-from-archive --archive-uri ${localArchive} ${storePathOption} ${distDirOption}`);
+        await exec.exec(`cabal-cache sync-from-archive --archive-uri ${localArchive}` +
+            ` ${storePathOption} ` +
+            ` ${distDirOption}` +
+            ` ${hostNameOption}` +
+            ` ${hostPortOption}` +
+            ` ${hostSslOption}` +
+            "");
     } catch (error) {
         utils.setCacheHitOutput(false);
         core.setFailed(error.message);
