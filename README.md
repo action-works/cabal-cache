@@ -1,5 +1,7 @@
 # cache
 
+This action is not currently maintained.  Please use https://github.com/action-works/cabal-cache-s3 instead.
+
 This action allows caching dependencies and build outputs to improve workflow execution time.
 
 <a href="https://github.com/action-works/cabal-cache/actions?query=workflow%3ATests"><img alt="GitHub Actions status" src="https://github.com/action-works/cabal-cache/workflows/Tests/badge.svg?branch=main&event=push"></a>
